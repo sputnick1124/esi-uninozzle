@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="UNW32" />
+		<Option pch_mode="2" />
+		<Option compiler="cygwin" />
+		<Build>
+			<Target title="Debug">
+				<Option output="bin/Debug/UNW32" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="cygwin" />
+				<Compiler>
+					<Add option="-g" />
+				</Compiler>
+			</Target>
+			<Target title="Release">
+				<Option output="bin/Release/UNW32" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="1" />
+				<Option compiler="cygwin" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+			<Add option="-fexceptions" />
+			<Add directory="C:/cygwin" />
+		</Compiler>
+		<Linker>
+			<Add library="C:\cygwin\lib\libz.dll.a" />
+			<Add library="C:\cygwin\lib\libargp.dll.a" />
+			<Add library="C:\cygwin\lib\libautomode.a" />
+			<Add library="C:\cygwin\lib\libbash.dll.a" />
+			<Add library="C:\cygwin\lib\libbfd.a" />
+			<Add library="C:\cygwin\lib\libbinmode.a" />
+			<Add library="C:\cygwin\lib\libc.a" />
+			<Add library="C:\cygwin\lib\libcharset.a" />
+			<Add library="C:\cygwin\lib\libcharset.dll.a" />
+			<Add library="C:\cygwin\lib\libcrypt.a" />
+			<Add library="C:\cygwin\lib\libcrypt.dll.a" />
+			<Add library="C:\cygwin\lib\libcygwin.a" />
+			<Add library="C:\cygwin\lib\libdl.a" />
+			<Add library="C:\cygwin\lib\libg.a" />
+			<Add library="C:\cygwin\lib\libgmon.a" />
+			<Add library="C:\cygwin\lib\libgpg-error.dll.a" />
+			<Add library="C:\cygwin\lib\libiberty.a" />
+			<Add library="C:\cygwin\lib\libiconv.a" />
+			<Add library="C:\cygwin\lib\libiconv.dll.a" />
+			<Add library="C:\cygwin\lib\libintl.a" />
+			<Add library="C:\cygwin\lib\libintl.dll.a" />
+			<Add library="C:\cygwin\lib\libm.a" />
+			<Add library="C:\cygwin\lib\libopcodes.a" />
+			<Add library="C:\cygwin\lib\libopencv_calib3d.dll.a" />
+			<Add library="C:\cygwin\lib\libopencv_contrib.dll.a" />
+			<Add library="C:\cygwin\lib\libopencv_core.dll.a" />
+			<Add library="C:\cygwin\lib\libopencv_features2d.dll.a" />
+			<Add library="C:\cygwin\lib\libopencv_flann.dll.a" />
+			<Add library="C:\cygwin\lib\libopencv_gpu.dll.a" />
+			<Add library="C:\cygwin\lib\libopencv_highgui.dll.a" />
+			<Add library="C:\cygwin\lib\libopencv_imgproc.dll.a" />
+			<Add library="C:\cygwin\lib\libopencv_legacy.dll.a" />
+			<Add library="C:\cygwin\lib\libopencv_ml.dll.a" />
+			<Add library="C:\cygwin\lib\libopencv_objdetect.dll.a" />
+			<Add library="C:\cygwin\lib\libopencv_ocl.dll.a" />
+			<Add library="C:\cygwin\lib\libopencv_photo.dll.a" />
+			<Add library="C:\cygwin\lib\libopencv_stitching.dll.a" />
+			<Add library="C:\cygwin\lib\libopencv_superres.dll.a" />
+			<Add library="C:\cygwin\lib\libopencv_ts.dll.a" />
+			<Add library="C:\cygwin\lib\libopencv_video.dll.a" />
+			<Add library="C:\cygwin\lib\libopencv_videostab.dll.a" />
+			<Add library="C:\cygwin\lib\libpthread.a" />
+			<Add library="C:\cygwin\lib\libpython2.7.dll.a" />
+			<Add library="C:\cygwin\lib\libresolv.a" />
+			<Add library="C:\cygwin\lib\librt.a" />
+			<Add library="C:\cygwin\lib\libtextmode.a" />
+			<Add library="C:\cygwin\lib\libtextreadmode.a" />
+			<Add library="C:\cygwin\lib\libtz.a" />
+			<Add library="C:\cygwin\lib\libutil.a" />
+			<Add library="C:\cygwin\lib\libuuid.dll.a" />
+			<Add library="C:\cygwin\lib\libz.a" />
+			<Add directory="C:/cygwin/bin" />
+		</Linker>
+		<Unit filename="main.cpp" />
+		<Extensions>
+			<code_completion />
+			<envvars />
+			<debugger />
+			<lib_finder disable_auto="1" />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>

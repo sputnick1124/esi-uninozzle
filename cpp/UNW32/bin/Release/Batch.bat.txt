@@ -1,0 +1,3 @@
+cd C:/UNW32/bin/Release
+start camVideoStream.exe
+start UNW32.exe
