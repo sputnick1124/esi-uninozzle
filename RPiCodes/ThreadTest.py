@@ -1,4 +1,6 @@
-import threading, time
+from multiprocessing import Process as Thread
+from multiprocessing import Lock
+import time
 
 def timer1(lock):
     global counter, Flag
@@ -14,8 +16,8 @@ def timer1(lock):
         else:
             break
 
-lock = threading.Lock()
-t1 = threading.Thread(target = timer1,args = (lock,))
+lock = Lock()
+t1 = Thread(target = timer1,args = (lock,))
 t1.start()
 for foo in range(10):
     print foo,'\n'
