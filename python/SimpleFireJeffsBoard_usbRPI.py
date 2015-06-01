@@ -107,7 +107,7 @@ def gateRead(ports=None, t=3):
         print('Timed out')
         pass
 T1 = input('Fire time? ')   
-solen = serial.Serial("COM11",115200,timeout=1)
+solen = serial.Serial("/dev/ttyAMA0",115200,timeout=1)
 
 try:
     while True:

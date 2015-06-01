@@ -16,7 +16,6 @@ import serial, time, bisect, cv2
 def suppressFire_callback(channel):
     x,y = float('nan'),float('nan')
     while np.isnan(x) or np.isnan(y):
-		print x,y
         FireImage = np.abs(np.average(ImQueue[-1],-1) - np.average(ImQueue[0],-1))
         x,y = findFire(FireImage)
 #    fo = '-'.join(map(str, datetime.now().timetuple()[:6]))
@@ -67,8 +66,8 @@ def pictureQueue(res,bright,con,fps):
                 if len(ImQueue) > 3:
                     ImQueue.popleft()
                 output.truncate(0)
-                if not count%100:
-                    print '%0.2f fps' % (100/(time.time()-t1))
+                if not count%1000:
+                    print '%d fps' % int(1000/(time.time()-t1))
                     count, t1 = 0, time.time()
             
 
@@ -99,8 +98,10 @@ def binaryCode(ports):
 def firePorts(dat):
     '''Sends command to board to fire correct ports'''
     chksum = 11
-    s = binaryCode(fireDict[dat])
+#    s = binaryCode(fireDict[dat])
+    s = binaryCode((4,6))
     chksum += s%8
+#    cmd = '\xb3\x01\x07\x10{0}{1}\x0d'.format(chr(s),chr(chksum))
     cmd = '\xb3\x01\x07\x10{0}{1}\x0d'.format(chr(s),chr(chksum))
     ser.write(cmd)
     time.sleep(3)
