@@ -16,7 +16,7 @@ import serial, time, bisect, cv2
 def suppressFire_callback(channel):
     x,y = float('nan'),float('nan')
     while np.isnan(x) or np.isnan(y):
-		print x,y
+	print x,y
         FireImage = np.abs(np.average(ImQueue[-1],-1) - np.average(ImQueue[0],-1))
         x,y = findFire(FireImage)
 #    fo = '-'.join(map(str, datetime.now().timetuple()[:6]))
@@ -98,6 +98,17 @@ def binaryCode(ports):
 
 def firePorts(dat):
     '''Sends command to board to fire correct ports'''
+    ser.write(chr(254))
+    ser.write(chr(40))
+    ser.write(chr(binaryCode(fireDict[dat])))
+    time.sleep(3)
+    ser.write(chr(254))
+    ser.write(chr(29))
+    ser.flushInput()
+
+
+"""def firePorts(dat):
+    '''Sends command to board to fire correct ports'''
     chksum = 11
     s = binaryCode(fireDict[dat])
     chksum += s%8
@@ -105,7 +116,7 @@ def firePorts(dat):
     ser.write(cmd)
     time.sleep(3)
     cmd = '\xb3\x01\x07\x10\x00\x0b\x0d'
-    ser.write(cmd)	
+    ser.write(cmd)"""
 
 
 def fireAllPorts_callback(channel):
@@ -126,7 +137,7 @@ GPIO.setmode(GPIO.BCM)
 GPIO.setup(gatePin,GPIO.IN,pull_up_down = GPIO.PUD_DOWN)
 GPIO.setup(overridePin,GPIO.IN,pull_up_down = GPIO.PUD_DOWN)
 
-ser = serial.Serial('/dev/ttyAMA0', baudrate = 115200, timeout = 0.02)
+ser = serial.Serial('/dev/ttyUSB0', baudrate = 115200, timeout = 0.02)
 #---
 
 # Map the ports to the frame grid. These may need to be derived by trial/error.
