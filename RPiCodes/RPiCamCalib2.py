@@ -89,12 +89,13 @@ def calibrate():
 		
 				print rgbavg, 'percent white'
 				print gmaxarea, 'g max area'
+                shut = cam.shutter_speed
 	#	cam.capture('postcalib.bmp')
 		cam.stop_preview()
 		cam.start_preview()	
 		time.sleep(2)
 		cam.stop_preview()
-		return gains, bright, con
+		return gains, bright, con, shut
 
 if __name__ == '__main__':
 	calibrate()

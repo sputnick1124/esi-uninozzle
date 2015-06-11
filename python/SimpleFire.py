@@ -1,7 +1,7 @@
 import time #All libraries must be installed on the PC and then imported at the top of the code
 import serial
 
-ser = serial.Serial('COM10') #Inizalize Serial Port. The 0 is the port number. This will may if you change computers.
+ser = serial.Serial('/dev/ttyUSB0') #Inizalize Serial Port. The 0 is the port number. This will may if you change computers.
 ser.baudrate = 115200 
 ser.timeout = .02
 
