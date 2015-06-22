@@ -134,10 +134,14 @@ def firePorts_nick(dat):
     ser.flushInput()
 
 def firePorts_darlington(dat):
-    GPIO.output(solPins[fireDict[dat]],1)
+#    for pin in fireDict[dat]:
+#        GPIO.output(solPins[pin],1)
+    GPIO.output([sol0,sol2],1)
     GPIO.output(sigPin,1)
     time.sleep(3)
-    GPIO.output(solPins,0)
+    GPIO.output([sol0,sol2],0)
+#    for pin in fireDict[dat]:
+#        GPIO.output(solPins[pin],0)
     GPIO.output(sigPin,0)
 
 def fireAllPorts_callback(channel):
@@ -248,10 +252,10 @@ def calibrate():
 
 # Set up serial connection, gpio pins
 #---
-gatePin = 18
-sigPin = 21
+gatePin = 23
+sigPin = 5
 overridePin = 11
-solPins = (21, 20, 26, 16, 19, 12, 6, 5)
+solPins = (21, 20, 26, 16, 19, 13, 12, 6)
 sol0, sol1, sol2, sol3, sol4, sol5, sol6, sol7 = solPins
 GPIO.setmode(GPIO.BCM)
 
