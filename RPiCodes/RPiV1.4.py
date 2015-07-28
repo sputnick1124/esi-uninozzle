@@ -14,16 +14,27 @@ from numpy import nan, isnan, abs, average, zeros
 from cv2 import GaussianBlur, moments, imwrite
    
 
-def suppressFire_callback(channel):
+def suppressFire_callback(channel,flag=0):
 #    print GPIO.input(channel), channel
 #    print GPIO.input(24), 24
+    print 'callback'
+    if not flag:
+        print 'UVTron just told me about a fire!', GPIO.input(channel)
     x,y = nan, nan
     while isnan(x) or isnan(y):
-        if GPIO.input(channel):
-            return
+        print 'no fire in frame yet'
+#       Need to do some sort of check to filter out random spikes here
+        while GPIO.input(channel):
+            print 'signal is still high for some reason'
+            ti = time.time()
+            if time.time() - ti >= 0.01:
+                print "Something's wrong with the UVTron signal"
+                return
 #        FireImage = abs(average(ImQueue[-1],-1) - average(ImQueue[0],-1))
+        print 'grabbing an image'
         FireImage = average(ImQueue[0],-1)
         x,y = findFire(FireImage)
+#        print x,y
 #    fo = '-'.join(map(str, datetime.now().timetuple()[:6]))
 #    imwrite('fire'+fo+'.bmp',FireImage)
     xdivtmp, ydivtmp = xdivs[:], ydivs[:]
@@ -31,7 +42,9 @@ def suppressFire_callback(channel):
     bisect.insort(ydivtmp,y)
     xzone = xdivtmp.index(x) - 1   # Find the grid coordinates
     yzone = ydivtmp.index(y) - 1
+    print 'fire seen in %d,%d' % (xzone,yzone)
     del xdivtmp, ydivtmp
+    print 'putting out fire'
     firePorts((xzone,yzone))
     print 'Fire at (%.2f,%.2f) in zone %d,%d\nFiring ports %d & %d' % ((x,y,xzone,yzone,) + fireDict[(xzone,yzone)])
 
@@ -43,7 +56,7 @@ def findFire(data):
     mask = zeros(data.shape)
     mask[data > (data.mean() + data.max())/1.5] = 1
     mom = moments(mask)
-    imwrite('mask{0}{1}{2}.bmp'.format(mom['m00'],mom['m02'],mom['m20']),mask)
+#    imwrite('mask{0}{1}{2}.bmp'.format(mom['m00'],mom['m02'],mom['m20']),mask)
     if mom['m00']:
         x, y = mom['m10']/mom['m00'], mom['m01']/mom['m00']
     else:
@@ -101,7 +114,7 @@ def firePorts_mosfet(dat):
     GPIO.output(firePins,0)
     GPIO.output(sigPin,0)
     if not GPIO.input(gatePin):
-        suppressFire_callback(gatePin)
+        suppressFire_callback(gatePin,1)
 
 def fireAllPorts_callback(channel):
     '''Activates GPIO pins to fire all ports in case of override'''
@@ -212,11 +225,11 @@ gatePin = 24
 sigPin = 5
 powderMixer = 6
 overridePin = 23
-solPins = (13, 16, 20, 21, 26, 19, 12)
+solPins = (12, 19, 26, 21, 20, 16, 13)
 sol0, sol1, sol2, sol3, sol4, sol5, sol6 = solPins
 GPIO.setmode(GPIO.BCM)
 
-GPIO.setup(gatePin,GPIO.IN,pull_up_down = GPIO.PUD_UP)
+GPIO.setup(gatePin,GPIO.IN,pull_up_down = GPIO.PUD_OFF)
 GPIO.setup(overridePin,GPIO.IN,pull_up_down = GPIO.PUD_DOWN)
 GPIO.setup(sigPin,GPIO.OUT)
 GPIO.setup(powderMixer,GPIO.OUT)
@@ -229,9 +242,9 @@ for pin in solPins:
 # Map the ports to the frame grid. These may need to be derived by trial/error.
 # This mapping will need to be adjusted for specific environments.
 #---
-portcombos = [(5, 6), (5, 6), (5, 6), (5, 6), (5, 6), (3, 5), (2, 3), (1, 2), (0, 1)] 
-portcombos = portcombos[::-1]
-res = 100,60              
+portcombos = [(3,4), (3,4), (3,4), (2,4), (2,4), (1,3), (1,2), (1,2), (1,2)] 
+#portcombos = portcombos[::-1]
+res = 30,30
 xgrid, ygrid = 9, 1
 grid = [(x,y) for y in range(ygrid) for x in range(xgrid)] # (xgrid) x (ygrid) grid locations
 fireDict = dict(zip(grid,portcombos)) # Hash grid locations to ports

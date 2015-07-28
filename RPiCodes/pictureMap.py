@@ -4,57 +4,18 @@ Created on Tue Oct 07 23:18:45 2014
 
 @author: Nick
 """
-from threading import Thread, Lock
-from collections import deque
 import picamera, picamera.array
-import time, bisect
-import RPi.GPIO as GPIO
-from datetime import datetime
 from numpy import nan, isnan, abs, average, zeros
 from cv2 import GaussianBlur, moments, imwrite
+from threading import Thread, Lock
+from collections import deque
+import time
    
-
-def suppressFire_callback(channel):
-#    print GPIO.input(channel), channel
-#    print GPIO.input(24), 24
-    x,y = nan, nan
-    while isnan(x) or isnan(y):
-        if GPIO.input(channel):
-            return
-#        FireImage = abs(average(ImQueue[-1],-1) - average(ImQueue[0],-1))
-        FireImage = average(ImQueue[0],-1)
-        x,y = findFire(FireImage)
-#    fo = '-'.join(map(str, datetime.now().timetuple()[:6]))
-#    imwrite('fire'+fo+'.bmp',FireImage)
-    xdivtmp, ydivtmp = xdivs[:], ydivs[:]
-    bisect.insort(xdivtmp,x)   # Insert the fire coordinates into the protection grid
-    bisect.insort(ydivtmp,y)
-    xzone = xdivtmp.index(x) - 1   # Find the grid coordinates
-    yzone = ydivtmp.index(y) - 1
-    del xdivtmp, ydivtmp
-    firePorts((xzone,yzone))
-    print 'Fire at (%.2f,%.2f) in zone %d,%d\nFiring ports %d & %d' % ((x,y,xzone,yzone,) + fireDict[(xzone,yzone)])
-
-def findFire(data):
-    '''Locates the brightest area in the frame by applying a differential
-        gaussian filter and creating a byte array of light vs dark. The centroid
-        of the light region is found and returned as the location of the fire'''
-    data = GaussianBlur(data,(3,3),2)
-    mask = zeros(data.shape)
-    mask[data > (data.mean() + data.max())/1.5] = 1
-    mom = moments(mask)
-    imwrite('mask{0}{1}{2}.bmp'.format(mom['m00'],mom['m02'],mom['m20']),mask)
-    if mom['m00']:
-        x, y = mom['m10']/mom['m00'], mom['m01']/mom['m00']
-    else:
-        x, y = nan, nan
-    return x, y
 
 def pictureQueue(res,bright,con,fps,gains):
     '''Keeps a running queue of three pictures for comparison and fire location'''
     global ImQueue, Flag
     ImQueue = deque()
-    GPIO.output(sigPin,1)
     window = (1400,150,300,180)
     with picamera.PiCamera() as cam:
         cam.preview_fullscreen = False
@@ -67,7 +28,6 @@ def pictureQueue(res,bright,con,fps,gains):
         cam.brightness = bright
         cam.contrast = con
         cam.framerate = fps
-        cam.led = False
         cam.start_preview()
         cam.rotation = 180
         time.sleep(1)
@@ -89,25 +49,6 @@ def pictureQueue(res,bright,con,fps,gains):
                     cam.stop_preview()
                     break
     print 'camera closed'
-
-def firePorts_mosfet(dat):
-    '''Activates the correct GPIO pins for the in-house mosfet board'''
-    firePins = [powderMixer]
-    for pin in fireDict[dat]:
-        firePins.append(solPins[pin]) 
-    GPIO.output(firePins,1)
-    GPIO.output(sigPin,1)
-    time.sleep(3)
-    GPIO.output(firePins,0)
-    GPIO.output(sigPin,0)
-    if not GPIO.input(gatePin):
-        suppressFire_callback(gatePin)
-
-def fireAllPorts_callback(channel):
-    '''Activates GPIO pins to fire all ports in case of override'''
-    GPIO.output(solPins + (powderMixer,),1)
-    time.sleep(3)
-    GPIO.output(solPins + (powderMixer,),0)
 
 def calibrate():
 	rgbavg = 100
@@ -206,68 +147,29 @@ def calibrate():
 		
 
 
-# Set up serial connection, gpio pins
-#---
-gatePin = 24
-sigPin = 5
-powderMixer = 6
-overridePin = 23
-solPins = (13, 16, 20, 21, 26, 19, 12)
-sol0, sol1, sol2, sol3, sol4, sol5, sol6 = solPins
-GPIO.setmode(GPIO.BCM)
-
-GPIO.setup(gatePin,GPIO.IN,pull_up_down = GPIO.PUD_UP)
-GPIO.setup(overridePin,GPIO.IN,pull_up_down = GPIO.PUD_DOWN)
-GPIO.setup(sigPin,GPIO.OUT)
-GPIO.setup(powderMixer,GPIO.OUT)
-GPIO.setup(solPins,GPIO.OUT)
-for pin in solPins:
-    GPIO.output(pin,0)
-
-#---
-
-# Map the ports to the frame grid. These may need to be derived by trial/error.
-# This mapping will need to be adjusted for specific environments.
-#---
-portcombos = [(5, 6), (5, 6), (5, 6), (5, 6), (5, 6), (3, 5), (2, 3), (1, 2), (0, 1)] 
-portcombos = portcombos[::-1]
 res = 100,60              
-xgrid, ygrid = 9, 1
-grid = [(x,y) for y in range(ygrid) for x in range(xgrid)] # (xgrid) x (ygrid) grid locations
-fireDict = dict(zip(grid,portcombos)) # Hash grid locations to ports
-
-xsize , ysize = res # this block of code constructs the protection grid divisions
-xsplit = xsize / xgrid
-ysplit = ysize / ygrid
-xdivs = range(0, xsize + xsplit, xsplit)
-ydivs = range(0, ysize + ysplit, ysplit)
 
 #---
 
 
 # Camera calibration
 #---
-fps = 90
+fps = 10
 gains, bright, con = calibrate()
 #---
 
-firePorts = firePorts_mosfet
 if __name__ == '__main__':
     try:
         lock = Lock()
         t1 = Thread(target = pictureQueue, args = (res,bright,con,fps,gains,))
         t1.daemon = True
         t1.start()
-        GPIO.add_event_detect(gatePin, GPIO.FALLING, callback = suppressFire_callback, bouncetime = 300)
-##        GPIO.add_event_detect(overridePin, GPIO.FALLING, callback = fireAllPorts_callback,bouncetime = 500)
         time.sleep(1)
         while not ('ImQueue' in globals() and len(ImQueue) > 2):
             time.sleep(0.5)
-        GPIO.output(sigPin,0)
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
         print '\nkilling program...'
-        GPIO.cleanup()
         Flag = 0
         t1.join()
