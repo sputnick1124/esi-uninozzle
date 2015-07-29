@@ -2,137 +2,248 @@
 """
 Created on Tue Oct 07 23:18:45 2014
 
-@author: HP
+@author: Nick
 """
+from threading import Thread, Lock, Event
 from collections import deque
-from threading import Thread, Lock
-from datetime import datetime
-import RPi.GPIO as GPIO
 import picamera, picamera.array
-import numpy as np
-import serial, time, bisect, cv2
+import time, bisect
+import RPi.GPIO as GPIO
+from datetime import datetime
+from numpy import nan, isnan, abs, average, zeros
+from cv2 import GaussianBlur, moments, imwrite
    
 
-def suppressFire_callback(channel):
-    x,y = float('nan'),float('nan')
-    while np.isnan(x) or np.isnan(y):
-        FireImage = np.abs(np.average(ImQueue[-1],-1) - np.average(ImQueue[0],-1))
+def suppressFire_callback(channel,flag=0):
+#    print GPIO.input(channel), channel
+#    print GPIO.input(24), 24
+    print 'callback'
+    if not flag:
+        print 'UVTron just told me about a fire!', GPIO.input(channel)
+    x,y = nan, nan
+    while isnan(x) or isnan(y):
+        print 'no fire in frame yet'
+#       Need to do some sort of check to filter out random spikes here
+        while GPIO.input(channel):
+            print 'signal is still high for some reason'
+            ti = time.time()
+            if time.time() - ti >= 0.01:
+                print "Something's wrong with the UVTron signal"
+                return
+#        FireImage = abs(average(ImQueue[-1],-1) - average(ImQueue[0],-1))
+        print 'grabbing an image'
+        FireImage = average(ImQueue[0],-1)
         x,y = findFire(FireImage)
-    fo = '-'.join(map(str, datetime.now().timetuple()[:6]))
-    misc.imsave('fire'+fo+'.bmp',FireImage)
+#        print x,y
+#    fo = '-'.join(map(str, datetime.now().timetuple()[:6]))
+#    imwrite('fire'+fo+'.bmp',FireImage)
     xdivtmp, ydivtmp = xdivs[:], ydivs[:]
     bisect.insort(xdivtmp,x)   # Insert the fire coordinates into the protection grid
     bisect.insort(ydivtmp,y)
     xzone = xdivtmp.index(x) - 1   # Find the grid coordinates
     yzone = ydivtmp.index(y) - 1
-    del xdivtmp, ydivtmp             
+    print 'fire seen in %d,%d' % (xzone,yzone)
+    del xdivtmp, ydivtmp
+    print 'putting out fire'
     firePorts((xzone,yzone))
     print 'Fire at (%.2f,%.2f) in zone %d,%d\nFiring ports %d & %d' % ((x,y,xzone,yzone,) + fireDict[(xzone,yzone)])
 
 def findFire(data):
     '''Locates the brightest area in the frame by applying a differential
-        gaussian filter and creating a byte array light vs dark. The centroid
+        gaussian filter and creating a byte array of light vs dark. The centroid
         of the light region is found and returned as the location of the fire'''
-    
-    
-    data = cv2.GaussianBlur(data,(3,3),2)
-    mask = np.zeros(data.shape)
-    mask[data > (data.mean() + data.max)/2.] = 1
-    mom = cv2.moments(mask)
-    try:
+    data = GaussianBlur(data,(3,3),2)
+    mask = zeros(data.shape)
+    mask[data > (data.mean() + data.max())/1.5] = 1
+    mom = moments(mask)
+#    imwrite('mask{0}{1}{2}.bmp'.format(mom['m00'],mom['m02'],mom['m20']),mask)
+    if mom['m00']:
         x, y = mom['m10']/mom['m00'], mom['m01']/mom['m00']
-    except ZeroDivisionError:
-        x, y = np.nan, np.nan
+    else:
+        x, y = nan, nan
     return x, y
 
-def pictureQueue(res,bright,con,fps):
+def pictureQueue(res,bright,con,fps,gains,flag,gate):
     '''Keeps a running queue of three pictures for comparison and fire location'''
-    global ImQueue, Flag
-    Flag = 1
-    ImQueue = deque([])
+    ImQueue = deque(maxlen=3)
+    GPIO.output(sigPin,1)
+    window = (1400,150,300,180)
     with picamera.PiCamera() as cam:
+        cam.preview_fullscreen = False
+        cam.preview_window = window
+        cam.iso = 800
+        cam.awb_mode = 'off'
+        cam.awb_gains = gains
         cam.resolution = res
+        cam.shutter_speed = 100
         cam.brightness = bright
         cam.contrast = con
         cam.framerate = fps
+        cam.led = False
         cam.start_preview()
+        cam.rotation = 180
         time.sleep(1)
-        g = cam.awb_gains
-        cam.iso = 200
-        cam.exposure_mode = 'off'
-        cam.awb_mode = 'off'
-        cam.awb_gains = g
-        cam.stop_preview()
+        print 'camera is live'
+        flag.set()
         with picamera.array.PiRGBArray(cam) as output:
             count = 0
+            t1 = time.time()
             for im in cam.capture_continuous(output,'rgb',use_video_port = True):
+                count += 1
                 ImQueue.append(output.array)
-                if len(ImQueue) > 3:
-                    ImQueue.popleft()
                 output.truncate(0)
-            
+                if gate.isSet():
 
-def binaryCode(ports):
-    '''Accepts a tuple of integers 0-7 signifying the ports desired. Allows
-    user to fire all ports on the solenoid board with a single 
-    command. Returns one byte character to set the status of all ports 
-    simultaneously. See docs on the Relay Pros website.
-    
-    Input:
-        ports - Tuple of integers
-        
-    Output:
-        cmd - Integer representation of unicode character.
-    
-    Example usage: binaryCode((0,4,6)) returns 81. User then sends chr(81)
-        to the solenoid board which interprets the unicode character as an 
-        8-bit binary switch, turning on solenoids 0, 4, and 6.
-    
-            bin(81) = '0b1010001' = 0 1 0 1 0 0 0 1
-                                    7 6 5 4 3 2 1 0'''
-        
-    cmd = 0
-    for port in ports:
-        cmd |= 1<<port
-    return cmd
+                if not count%1000:
+                    print '%d fps' % int(1000/(time.time()-t1))
+                    count, t1 = 0, time.time()
+                if not flag.isSet():
+                    cam.stop_preview()
+                    break
+    print 'camera closed'
 
-def firePorts(dat):
-    '''Sends command to board to fire correct ports'''
-    ser.write(chr(254))
-    ser.write(chr(40))
-    ser.write(chr(binaryCode(fireDict[dat])))
+def firePorts_mosfet(dat):
+    '''Activates the correct GPIO pins for the in-house mosfet board'''
+    firePins = [powderMixer]
+    for pin in fireDict[dat]:
+        firePins.append(solPins[pin]) 
+    GPIO.output(firePins,1)
+    GPIO.output(sigPin,1)
     time.sleep(3)
-    ser.write(chr(254))
-    ser.write(chr(29))
-    ser.flushInput()
+    GPIO.output(firePins,0)
+    GPIO.output(sigPin,0)
+    if not GPIO.input(gatePin):
+        suppressFire_callback(gatePin,1)
 
 def fireAllPorts_callback(channel):
-    '''Sends command to fire all ports in case of override'''
-    ser.write(chr(254))
-    ser.write(chr(30))
+    '''Activates GPIO pins to fire all ports in case of override'''
+    GPIO.output(solPins + (powderMixer,),1)
     time.sleep(3)
-    ser.write(chr(254))
-    ser.write(chr(29))
-    ser.flushInput()
+    GPIO.output(solPins + (powderMixer,),0)
+
+def calibrate():
+	rgbavg = 100
+	counter = 1
+	tog1 = 2
+	tog2 = 2
+	
+	with picamera.PiCamera() as cam:
+		cam.resolution = (100,60)
+		cam.start_preview()
+		time.sleep(1)
+		cam.iso = 800
+		cam.shutter_speed = 100
+		cam.framerate = 30
+		gains = cam.awb_gains
+		cam.awb_mode = "off"
+		cam.awb_gains = gains
+		bright = 70
+		con = 70
+		cam.contrast = con
+		cam.brightness = bright
+		bvar = 0
+		cvar = 0
+		gmax = 100
+		scord = 3
+		mcord = 3
+		with picamera.array.PiRGBArray(cam) as output:
+			while rgbavg > 12 or gmax > 150:
+				if not tog1%2:
+					if not tog2%2:
+						bvar += 5
+						cam.brightness = bright + bvar
+					else:
+						bvar += 5
+						cam.brightness = bright - bvar
+				else:
+					if not tog2%2:
+						cvar += 5
+						cam.contrast = con + cvar
+						tog2 += 1
+					else:
+						cvar += 5
+						cam.contrast = con - cvar
+						tog2 += 1
+				tog1 += 1
+				print counter
+				counter += 1
+				if counter > 6:
+					cam.brightness = 20
+					cam.contrast = 70
+					break
+				brightP = cam.brightness
+				conP = cam.contrast
+				cam.capture(output,'rgb',use_video_port=True)
+				img = output.array
+				output.truncate(0)
+				rtot, gtot, btot, gmax = 0, 0, 0, 0
+				ysize,xsize = cam.resolution
+				for s in range(xsize/2):
+					s *= 2
+					for m in range(ysize/2):
+						m *= 2
+						r,g,b = img[s, m]
+						rtot += r
+						gtot += g
+						btot += b
+						if g > gmax:
+							gmax = g
+							scord = s
+							mcord = m
+		
+				ravg = rtot/(xsize*ysize/4)/2.55
+				gavg = gtot/(xsize*ysize/4)/2.55
+				bavg = btot/(xsize*ysize/4)/2.55
+				rgbavg = (ravg + gavg + bavg)/3
+		
+				if (0 < scord < xsize) and (0 < mcord < ysize):
+					r, g1, b = img[scord,mcord]
+					r, g2, b = img[scord+1, mcord+1]
+					r, g3, b = img[scord, mcord+1]
+					r, g4, b = img[scord-1, mcord]
+					r, g5, b = img[scord, mcord-1]
+					gmaxarea = (g1 + g2 + g3 + g4 + g5)/5.
+				else:
+					gmaxarea = gmax
+					print 'safeguard active'
+		
+				print rgbavg, 'percent white'
+				print gmaxarea, 'g max area'
+	#	cam.capture('postcalib.bmp')
+		cam.stop_preview()
+		cam.start_preview()	
+		time.sleep(2)
+		cam.stop_preview()
+		return gains, bright, con
+		
 
 
 # Set up serial connection, gpio pins
 #---
-gatePin = 18
-overridePin = 11
+gatePin = 24
+sigPin = 5
+powderMixer = 6
+overridePin = 23
+solPins = (12, 19, 26, 21, 20, 16, 13)
+sol0, sol1, sol2, sol3, sol4, sol5, sol6 = solPins
 GPIO.setmode(GPIO.BCM)
-GPIO.setup(gatePin,GPIO.IN,pull_up_down = GPIO.PUD_DOWN)
-GPIO.setup(overridePin,GPIO.IN,pull_up_down = GPIO.PUD_DOWN)
 
-ser = serial.Serial('/dev/ttyUSB0', baudrate = 115200, timeout = 0.02)
+GPIO.setup(gatePin,GPIO.IN,pull_up_down = GPIO.PUD_OFF)
+GPIO.setup(overridePin,GPIO.IN,pull_up_down = GPIO.PUD_DOWN)
+GPIO.setup(sigPin,GPIO.OUT)
+GPIO.setup(powderMixer,GPIO.OUT)
+GPIO.setup(solPins,GPIO.OUT)
+for pin in solPins:
+    GPIO.output(pin,0)
+
 #---
 
 # Map the ports to the frame grid. These may need to be derived by trial/error.
 # This mapping will need to be adjusted for specific environments.
 #---
-portcombos = [(1, 2), (1, 2), (1, 2), (1, 2), (1, 2), (2, 4), (4, 5), (5, 6), (6, 7)]  
-
-res = 100,60              
+portcombos = [(3,4), (3,4), (3,4), (2,4), (2,4), (1,3), (1,2), (1,2), (1,2)] 
+#portcombos = portcombos[::-1]
+res = 50,30
 xgrid, ygrid = 9, 1
 grid = [(x,y) for y in range(ygrid) for x in range(xgrid)] # (xgrid) x (ygrid) grid locations
 fireDict = dict(zip(grid,portcombos)) # Hash grid locations to ports
@@ -148,55 +259,29 @@ ydivs = range(0, ysize + ysplit, ysplit)
 
 # Camera calibration
 #---
-fps = 32
-with picamera.PiCamera() as cam:
-    cam.resolution = res
-    cam.framerate = fps
-    cam.start_preview()
-    time.sleep(1)
-    g = cam.awb_gains
-    cam.iso = 300
-    cam.exposure_mode = 'off'
-    cam.awb_mode = 'off'
-    cam.awb_gains = g
-    with picamera.array.PiRGBArray(cam) as output:
-        cam.capture(output,'rgb',use_video_port = True)
-        avg_luminance = average(output.array)
-        while avg_luminance > 70:
-            if cam.brightness >= 5:
-                cam.brightness -= 5
-            if cam.contrast <= 95:
-                cam.contrast += 5
-            if cam.brightness == 0 and cam.contrast == 100:
-                break
-            avg_luminance = average(output.array)
-    time.sleep(1)
-    cam.stop_preview()
-    bright = cam.brightness
-    con = cam.contrast
-    print 'Brightness: %.2f' % cam.brightness
-    print 'Contrast: %.2f' % cam.contrast
-
-'''with picamera.PiCamera() as cap:
-    rgbavg = 100
-    counter = 1
-
-    cap.resolution = res
-    cap.framerate = 90
-'''
+fps = 90
+gains, bright, con = calibrate()
 #---
 
-try:
-    lock = Lock()
-    t1 = Thread(target = pictureQueue, args = (res,bright,con,fps,))
-    t1.setDaemon(True)
-    t1.start()
-    GPIO.add_event_detect(gatePin, GPIO.FALLING, callback = suppressFire_callback)#, bouncetime = 300)
-##    GPIO.add_event_detect(overridePin, GPIO.FALLING, callback = fireAllPorts_callback,bouncetime = 500)
-##    input('Press enter to exit program')
-##    GPIO.cleanup()
-except KeyboardInterrupt:
-    GPIO.cleanup()
-    ser.close
-    Flag = 0
-    t1.join()
+firePorts = firePorts_mosfet
+if __name__ == '__main__':
+    try:
+        gate = Event()
+        flag = Event()
+        t1 = Thread(target = pictureQueue, args = (res,bright,con,fps,gains,flag,gate,))
+        t1.daemon = True
+        t1.start()
+##        GPIO.add_event_detect(gatePin, GPIO.FALLING, callback = suppressFire_callback, bouncetime = 300)
+##        GPIO.add_event_detect(overridePin, GPIO.FALLING, callback = fireAllPorts_callback,bouncetime = 500)
+        gateSetter = [gate.set,gate.clear]
+        time.sleep(1)
+        while not ('ImQueue' in globals() and len(ImQueue) > 2):
+            time.sleep(0.5)
+        GPIO.output(sigPin,0)
+        while True:
+            gateSetter[GPIO.input(gatePin)]
+    except KeyboardInterrupt:
+        print '\nkilling program...'
+        GPIO.cleanup()
+        flag.clear()
+        t1.join()
