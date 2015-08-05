@@ -93,7 +93,7 @@ def calibrate():
 	#	cam.capture('postcalib.bmp')
 		cam.stop_preview()
 		cam.start_preview()	
-		time.sleep(2)
+		time.sleep(50)
 		cam.stop_preview()
 		return gains, bright, con, shut
 

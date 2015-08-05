@@ -22,16 +22,16 @@ def suppressFire_callback(channel,flag=0):
         print 'UVTron just told me about a fire!', GPIO.input(channel)
     x,y = nan, nan
     while isnan(x) or isnan(y):
-#        print 'no fire in frame yet'
+        print 'no fire in frame yet'
 #       Need to do some sort of check to filter out random spikes here
         ti = time.time()
         while GPIO.input(channel):
-#            print 'signal went high for some reason'
+            print 'signal went high for some reason'
             if time.time() - ti >= 0.01:
                 print "Something may be wrong with the UVTron signal"
                 return
 #        FireImage = abs(average(ImQueue[-1],-1) - average(ImQueue[0],-1))
-#        print 'grabbing an image'
+        print 'grabbing an image'
         FireImage = average(ImQueue[0],-1)
         x,y = findFire(FireImage)
 #        print x,y
@@ -44,7 +44,7 @@ def suppressFire_callback(channel,flag=0):
     yzone = ydivtmp.index(y) - 1
 #    print 'fire seen in %d,%d' % (xzone,yzone)
     del xdivtmp, ydivtmp
-#    print 'putting out fire'
+    print 'putting out fire'
     firePorts((xzone,yzone))
     print 'Fire at (%.2f,%.2f) in zone %d,%d\nFiring ports %d & %d' % ((x,y,xzone,yzone,) + fireDict[(xzone,yzone)])
 
@@ -54,18 +54,19 @@ def findFire(data):
         of the light region is found and returned as the location of the fire'''
     data = GaussianBlur(data,(3,3),2)
     mask = zeros(data.shape)
-    thresh = 40
-#    thresh = (data.mean() + data.max())/2
-#    print thresh
+#    mn, mx = data.mean(), data.max()
+#    thresh = (data.mean() + data.max())/mx
+#    print thresh, mn, mx
 #    mask[data > (data.mean() + data.max())/2] = 1
+    thresh = 40
     mask[data > thresh] = 1
     mom = moments(mask)
 #    imwrite('mask{0}{1}{2}.bmp'.format(mom['m00'],mom['m02'],mom['m20']),mask)
     if mom['m00']:
-#        print 'yep'
+        print 'yep'
         x, y = mom['m10']/mom['m00'], mom['m01']/mom['m00']
     else:
-#        print 'nope'
+        print 'nope'
         x, y = nan, nan
     return x, y
 
@@ -73,11 +74,11 @@ def pictureQueue(res,bright,con,fps,gains):
     '''Keeps a running queue of three pictures for comparison and fire location'''
     global ImQueue, Flag
     ImQueue = deque(maxlen=3)
-#    GPIO.output(sigPin,1)
-#    window = (1400,150,300,180)
+    GPIO.output(sigPin,1)
+    window = (1400,150,300,180)
     with picamera.PiCamera() as cam:
-#        cam.preview_fullscreen = False
-#        cam.preview_window = window
+        cam.preview_fullscreen = False
+        cam.preview_window = window
         cam.iso = 800
         cam.awb_mode = 'off'
         cam.awb_gains = gains
@@ -87,7 +88,7 @@ def pictureQueue(res,bright,con,fps,gains):
         cam.contrast = con
         cam.framerate = fps
         cam.led = False
-#        cam.start_preview()
+        cam.start_preview()
         cam.rotation = 180
         time.sleep(1)
         print 'camera is live'
@@ -98,6 +99,7 @@ def pictureQueue(res,bright,con,fps,gains):
             for im in cam.capture_continuous(output,'rgb',use_video_port = True):
                 count += 1
                 ImQueue.append(output.array)
+                print findFire(average(ImQueue[-1],-1))
                 output.truncate(0)
                 if not count%1000:
                     print '%d fps' % int(1000/(time.time()-t1))
@@ -241,7 +243,6 @@ GPIO.setup(solPins,GPIO.OUT)
 for pin in solPins:
     GPIO.output(pin,0)
 
-GPIO.output(sigPin,1)
 #---
 
 # Map the ports to the frame grid. These may need to be derived by trial/error.
@@ -249,7 +250,7 @@ GPIO.output(sigPin,1)
 #---
 portcombos = [(4,5), (4,5), (3,4), (3,4), (3,4), (2,4), (2,4), (1,3), (1,2)] 
 #portcombos = portcombos[::-1]
-res = 50,30
+res = 100,60
 xgrid, ygrid = 9, 1
 grid = [(x,y) for y in range(ygrid) for x in range(xgrid)] # (xgrid) x (ygrid) grid locations
 fireDict = dict(zip(grid,portcombos)) # Hash grid locations to ports
