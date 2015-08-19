@@ -21,19 +21,23 @@ def suppressFire_callback(channel,flag=0):
     if not flag:
         print 'UVTron just told me about a fire!', GPIO.input(channel)
     x,y = nan, nan
+    t1 = time.time()
     while isnan(x) or isnan(y):
 #        print 'no fire in frame yet'
 #       Need to do some sort of check to filter out random spikes here
-        ti = time.time()
-        while GPIO.input(channel):
+#        ti = time.time()
+#        while GPIO.input(channel):
 #            print 'signal went high for some reason'
-            if time.time() - ti >= 0.01:
-                print "Something may be wrong with the UVTron signal"
-                return
+#            if time.time() - ti >= 0.01:
+#                print "Something may be wrong with the UVTron signal"
+#                return
 #        FireImage = abs(average(ImQueue[-1],-1) - average(ImQueue[0],-1))
 #        print 'grabbing an image'
         FireImage = average(ImQueue[0],-1)
         x,y = findFire(FireImage)
+        if time.time()-t1 > 0.5:
+            if GPIO.input(channel):
+                return
 #        print x,y
 #    fo = '-'.join(map(str, datetime.now().timetuple()[:6]))
 #    imwrite('fire'+fo+'.bmp',FireImage)
@@ -54,7 +58,7 @@ def findFire(data):
         of the light region is found and returned as the location of the fire'''
     data = GaussianBlur(data,(3,3),2)
     mask = zeros(data.shape)
-    thresh = 40
+    thresh = 80
 #    thresh = (data.mean() + data.max())/2
 #    print thresh
 #    mask[data > (data.mean() + data.max())/2] = 1
@@ -117,8 +121,9 @@ def firePorts_mosfet(dat):
     time.sleep(2)
     GPIO.output(firePins,0)
     GPIO.output(sigPin,0)
-    if not GPIO.input(gatePin):
-        suppressFire_callback(gatePin,1)
+#    time.sleep(2)
+#    if not GPIO.input(gatePin):
+#        suppressFire_callback(gatePin,1)
 
 def fireAllPorts_callback(channel):
     '''Activates GPIO pins to fire all ports in case of override'''
@@ -249,7 +254,7 @@ GPIO.output(sigPin,1)
 #---
 portcombos = [(4,5), (4,5), (3,4), (3,4), (3,4), (2,4), (2,4), (1,3), (1,2)] 
 #portcombos = portcombos[::-1]
-res = 50,30
+res = 100,60
 xgrid, ygrid = 9, 1
 grid = [(x,y) for y in range(ygrid) for x in range(xgrid)] # (xgrid) x (ygrid) grid locations
 fireDict = dict(zip(grid,portcombos)) # Hash grid locations to ports

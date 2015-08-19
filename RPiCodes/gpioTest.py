@@ -1,16 +1,26 @@
 import RPi.GPIO as gpio
 import time
-
-def callback1(channel):
-    print 'Channel %s triggered' % channel
     
+def callback1(channel):
+    print gpio.input(channel)
+    if gpio.input(channel):
+        t1 = time.time()
+        while time.time()-t1<0.1:
+            print gpio.input(channel)
+            time.sleep(0.01)
 gpio.setmode(gpio.BCM)
 
-gpio.setup(18,gpio.IN)
+gate = 24
 
-gpio.input(18)
+gpio.setup(gate,gpio.IN,pull_up_down=gpio.PUD_OFF)
 
-gpio.add_event_detect(18,gpio.FALLING, callback = callback1, bouncetime = 300)
+gpio.input(gate)
 
-while True:
-    time.sleep(1)
+gpio.add_event_detect(gate,gpio.FALLING, callback = callback1, bouncetime = 300)
+
+try:
+    while True:
+        time.sleep(0.01)
+#        print gpio.input(gate)
+except KeyboardInterrupt:
+    pass
