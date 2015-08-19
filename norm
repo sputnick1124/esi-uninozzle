@@ -1,0 +1,4 @@
+#! /bin/bash
+sudo cp /etc/network/interfaces.norm /etc/network/interfaces
+sudo /etc/init.d/networking restart
+
