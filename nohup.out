@@ -1,0 +1,16 @@
+Failed to open VDPAU backend libvdpau_nvidia.so: cannot open shared object file: No such file or directory
+Failed to open VDPAU backend libvdpau_nvidia.so: cannot open shared object file: No such file or directory
+Failed to open VDPAU backend libvdpau_nvidia.so: cannot open shared object file: No such file or directory
+Failed to open VDPAU backend libvdpau_nvidia.so: cannot open shared object file: No such file or directory
+Failed to open VDPAU backend libvdpau_nvidia.so: cannot open shared object file: No such file or directory
+Failed to open VDPAU backend libvdpau_nvidia.so: cannot open shared object file: No such file or directory
+Failed to open VDPAU backend libvdpau_nvidia.so: cannot open shared object file: No such file or directory
+Failed to open VDPAU backend libvdpau_nvidia.so: cannot open shared object file: No such file or directory
+Failed to open VDPAU backend libvdpau_nvidia.so: cannot open shared object file: No such file or directory
+WARNING: content window passed to PrivateBrowsingUtils.isWindowPrivate. Use isContentWindowPrivate instead (but only for frame scripts).
+pbu_isWindowPrivate@resource://gre/modules/PrivateBrowsingUtils.jsm:25:14
+@chrome://tabmixplus/content/changecode.js line 1 > eval:37:21
+1434467395102	addons.update-checker	WARN	Update manifest for {972ce4c6-7e08-4474-a285-3208198ce6fd} did not contain an updates property
+1434467395292	addons.update-checker	WARN	Update manifest for ubufox@ubuntu.com did not contain an updates property
+hashcompleter: cancelling request to https://safebrowsing.google.com/safebrowsing/gethash?client=Firefox&appver=38.0&pver=2.2
+hashcompleter: notifying failure
